@@ -141,8 +141,8 @@ cd ../..
 STEP_STACK_NAME="${STACK_NAME}-compute"
 STEP_STACK_ID=$( aws cloudformation create-stack --stack-name ${STEP_STACK_NAME} \
   --template-body file://video-processing.yml \
-  --parameters ParameterKey=VideoToFrameContainer,ParameterValue=${DOCKER_URL_1} \
-               ParameterKey=VideoInferenceContainer,ParameterValue=${DOCKER_URL_2} \
+  --parameters ParameterKey=VideoToFrameContainer,ParameterValue=${DOCKER_URL_1}:1 \
+               ParameterKey=VideoInferenceContainer,ParameterValue=${DOCKER_URL_2}:1 \
   --capabilities CAPABILITY_IAM \
   | jq -r .StackId \
 )
