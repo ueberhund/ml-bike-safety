@@ -30,6 +30,12 @@ STACK_NAME='video-infra'
 REGION=$(aws configure get region)
 ACCOUNT_ID=$(aws sts get-caller-identity | jq '.Account' -r)
 
+if [[ $REGION -ne ""]]; then
+    echo "Please set a region by running 'aws configure'"
+    exit
+fi
+
+
 echo "Creating stack..."
 STACK_ID=$( aws cloudformation create-stack --stack-name ${STACK_NAME} \
   --template-body file://video-infrastructure.yml \
