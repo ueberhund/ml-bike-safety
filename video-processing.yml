@@ -93,12 +93,12 @@ Resources:
               - !Join
                 - ''
                 - - 'arn:aws:s3:::'
-                  - !Ref VideoInputBucket
+                  - !Sub ${AWS::StackName}-input-bucket
                   - '/*'
               - !Join
                 - ''
                 - - 'arn:aws:s3:::'
-                  - !Ref VideoOutputBucket
+                  - !Sub ${AWS::StackName}-output-bucket
                   - '/*'
       - PolicyName:
           !Join
@@ -413,6 +413,7 @@ Resources:
   VideoOutputBucket:
     Type: AWS::S3::Bucket
     Properties:
+      BucketName: !Sub ${AWS::StackName}-output-bucket
       Tags:
       - Key: Name
         Value: !Ref "AWS::StackName"
