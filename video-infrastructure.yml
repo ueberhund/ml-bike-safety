@@ -19,14 +19,6 @@ Outputs:
     Value: !Ref MLBucket
     Export:
       Name: video-sharedinf-ml-bucket
-  VideoInputBucket:
-    Value: !Ref VideoInputBucket
-    Export:
-      Name: video-sharedinf-inputbucket
-  VideoOutputBucket:
-    Value: !Ref VideoOutputBucket
-    Export:
-      Name: video-sharedinf-outputbucket
   VideoToFrameRepo:
     Value: !Ref VideoToFrameRepo
   VideoInferenceRepo:
@@ -109,18 +101,6 @@ Resources:
       - Key: Name
         Value: !Ref "AWS::StackName"
   MLBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      Tags:
-      - Key: Name
-        Value: !Ref "AWS::StackName"
-  VideoInputBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      Tags:
-      - Key: Name
-        Value: !Ref "AWS::StackName"
-  VideoOutputBucket:
     Type: AWS::S3::Bucket
     Properties:
       Tags:

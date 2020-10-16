@@ -1,3 +1,8 @@
+Outputs:
+  VideoInputBucket:
+    Value: !Ref VideoInputBucket
+  VideoOutputBucket:
+    Value: !Ref VideoOutputBucket
 
 Parameters:
   VideoToFrameContainer:
@@ -139,7 +144,7 @@ Resources:
   VideoInferenceLogGroup:
     Type: "AWS::Logs::LogGroup"
     Properties:
-      LogGroupName: "/ecs/video-inference"    
+      LogGroupName: "/ecs/video-inference"
 
   VideoCluster:
     Type: "AWS::ECS::Cluster"
@@ -304,6 +309,110 @@ Resources:
               SecurityGroup: !ImportValue video-sharedinf-publicsecuritygroup
             }
       RoleArn: !GetAtt VideoTaskRole.Arn
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+
+  LambdaInvokePermission:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      FunctionName: !GetAtt LambdaListener.Arn
+      Action: "lambda:InvokeFunction"
+      Principal: "s3.amazonaws.com"
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - -lambda-logging
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:*
+            Resource: arn:aws:logs:*:*:*
+      - PolicyName:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - -statefunction-execution
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - states:StartExecution
+            Resource:
+            - !Ref VideoStepFunction
+
+  LambdaListener:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile:
+          !Sub |
+            import json
+            import urllib.parse
+            import boto3
+
+            print('Loading function')
+
+            def lambda_handler(event, context):
+                # Get the object from the event and show its content type
+                bucket = event['Records'][0]['s3']['bucket']['name']
+                key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'], encoding='utf-8')
+                try:
+
+                  client = boto3.client('stepfunctions')
+                  key_parts = key.split(".")
+                  step_json = "{{ \"s3_input\" : \"{0}\", \"s3_input_file\" : \"{1}\", \"s3_output\" : \"${VideoOutputBucket}\", \"input_bucket_prefix\" : \"bike/{2}/\", \"output_bucket_prefix\": \"batch-inference/\"}}".format(bucket, key, key_parts[0])
+
+                  response = client.start_execution(stateMachineArn="${VideoStepFunction.Arn}", input=step_json)
+
+                except Exception as e:
+                    print(e)
+                    print('Error getting object {} from bucket {}. Make sure they exist and your bucket is in the same region as this function.'.format(key, bucket))
+                    raise e
+
+      Handler: "index.lambda_handler"
+      Runtime: python3.7
+      Timeout: 30
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  VideoInputBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${AWS::StackName}-input-bucket
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: MP4
+            Function: !GetAtt LambdaListener.Arn
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+  VideoOutputBucket:
+    Type: AWS::S3::Bucket
+    Properties:
       Tags:
       - Key: Name
         Value: !Ref "AWS::StackName"

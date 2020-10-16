@@ -51,8 +51,6 @@ aws cloudformation wait stack-create-complete --stack-name ${STACK_ID}
 CFN_OUTPUT=$(aws cloudformation describe-stacks --stack-name ${STACK_ID} | jq .Stacks[0].Outputs)
 
 ML_BUCKET=$(echo $CFN_OUTPUT | jq '.[]| select(.OutputKey | contains("MLBucket")).OutputValue' -r)
-VIDEO_INPUT_BUCKET=$(echo $CFN_OUTPUT | jq '.[] | select(.OutputKey | contains("VideoInputBucket")).OutputValue' -r)
-VIDEO_OUTPUT_BUCKET=$(echo $CFN_OUTPUT | jq '.[] | select(.OutputKey | contains("VideoOutputBucket")).OutputValue' -r)
 PUBLIC_SEC_GROUP=$(echo $CFN_OUTPUT | jq '.[] | select(.OutputKey | contains("PublicSecurityGroup")).OutputValue' -r)
 VPC=$(echo $CFN_OUTPUT | jq '.[] | select(.OutputKey | contains("VPCId")).OutputValue' -r)
 PUB_SUBNET_1=$(echo $CFN_OUTPUT | jq '.[] | select(.OutputKey | contains("PublicSubnet1")).OutputValue' -r)
@@ -63,7 +61,6 @@ VIDEO_INF_REPO=$(echo $CFN_OUTPUT | jq '.[] | select(.OutputKey | contains("Vide
 #Upload the ML model_name
 MODEL_PATH="s3://${ML_BUCKET}/model/model.tar.gz"
 aws s3 cp s3://aws-gmike-public-us-west-2/video-processing-model/model.tar.gz ${MODEL_PATH}
-#echo $MODEL_PATH
 
 #If using a different region, you'll need to get the right path, available here:
 #https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-algo-docker-registry-paths.html
@@ -88,7 +85,6 @@ do
 done
 
 SAGEMAKER_ECR_PATH="${SAGEMAKER_ECR_PATH}/object-detection:1"
-#echo $SAGEMAKER_ECR_PATH
 
 ML_STACK_NAME="${STACK_NAME}-ml-model"
 
@@ -107,13 +103,9 @@ RESOURCE_OUTPUT=$(aws cloudformation describe-stacks --stack-name ${ML_STACK_ID}
 MODEL_NAME=$(echo $RESOURCE_OUTPUT | jq '.[] | select(.OutputKey | contains("Model")).OutputValue' -r)
 SNS_TOPIC=$(echo $RESOURCE_OUTPUT | jq '.[] | select(.OutputKey | contains("SNSTopic")).OutputValue' -r)
 MEDIACONVERT_SERVICE_ROLE=$(echo $RESOURCE_OUTPUT | jq '.[] | select(.OutputKey | contains("MediaConvertServiceRole")).OutputValue' -r)
-echo $MODEL_NAME
-echo $SNS_TOPIC
-echo $MEDIACONVERT_SERVICE_ROLE
 
 #Transform the code in the docker images
 MEDIACONVERT_ENDPOINT_URL=$(aws mediaconvert describe-endpoints | jq '.[][0].Url' -r)
-echo $MEDIACONVERT_ENDPOINT_URL
 
 #Build and upload the docker images
 echo "Building video-to-frame docker image"
@@ -152,6 +144,8 @@ STEP_STACK_ID=$( aws cloudformation create-stack --stack-name ${STEP_STACK_NAME}
 )
 
 aws cloudformation wait stack-create-complete --stack-name ${STEP_STACK_ID}
+STEP_OUTPUT=$(aws cloudformation describe-stacks --stack-name ${STEP_STACK_ID} | jq .Stacks[0].Outputs)
+VIDEO_INPUT_BUCKET=$(echo $STEP_OUTPUT | jq '.[] | select(.OutputKey | contains("VideoInputBucket")).OutputValue' -r)
 
 echo "Congratulations! Your stack is now complete!"
 echo "You can begin by uploading a file to s3://${VIDEO_INPUT_BUCKET}"
