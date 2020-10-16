@@ -58,10 +58,10 @@ Resources:
               - mediaconvert.amazonaws.com
           Action:
             - 'sts:AssumeRole'
-      Path: "/service-role/"
+      Path: "/"
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonS3FullAccess
-        - arn:aws:iam::aws:policy/AmazonSNSFullAccess
+        - arn:aws:iam::aws:policy/AmazonAPIGatewayInvokeFullAccess
 
   Model:
     Type: "AWS::SageMaker::Model"
