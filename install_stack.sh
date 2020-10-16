@@ -32,7 +32,7 @@ ACCOUNT_ID=$(aws sts get-caller-identity | jq '.Account' -r)
 
 echo "Creating stack..."
 STACK_ID=$( aws cloudformation create-stack --stack-name ${STACK_NAME} \
-  --template-body file://prod/video-infrastructure.yml \
+  --template-body file://video-infrastructure.yml \
   --capabilities CAPABILITY_IAM \
   | jq -r .StackId \
 )
@@ -83,7 +83,7 @@ SAGEMAKER_ECR_PATH="${SAGEMAKER_ECR_PATH}/object-detection:1"
 ML_STACK_NAME="${STACK_NAME}-ml-model"
 
 ML_STACK_ID=$( aws cloudformation create-stack --stack-name ${ML_STACK_NAME} \
-  --template-body file://prod/video-resources.yml \
+  --template-body file://video-resources.yml \
   --parameters ParameterKey=ImageUrl,ParameterValue=${SAGEMAKER_ECR_PATH} \
                ParameterKey=ModelPath,ParameterValue=${MODEL_PATH} \
   --capabilities CAPABILITY_IAM \
@@ -108,7 +108,7 @@ echo $MEDIACONVERT_ENDPOINT_URL
 echo "Building video-to-frame docker image"
 DOCKER_URL_1=$(aws ecr describe-repositories | jq '.repositories[] | select(.repositoryName | contains("'$VIDEO_TO_FRAME_REPO'")).repositoryUri' -r)
 
-cd prod/docker/video-to-frame/
+cd docker/video-to-frame/
 aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
 docker build -t $VIDEO_TO_FRAME_REPO .
 docker tag $VIDEO_TO_FRAME_REPO:latest $DOCKER_URL_1:1
@@ -132,7 +132,7 @@ docker push $DOCKER_URL_2:1
 echo "Building the Fargate tasks and step functions"
 STEP_STACK_NAME="${STACK_NAME}-compute"
 STEP_STACK_ID=$(aws cloudformation create-stack --stack-name ${STEP_STACK_NAME} \
-  --template-body file://prod/video-processing.yml \
+  --template-body file://video-processing.yml \
   --parameters ParameterKey=VideoToFrameContainer,ParameterValue=${DOCKER_URL_1} \
                ParameterKey=VideoInferenceContainer,ParameterValue=${DOCKER_URL_2} \
   --capabilities CAPABILITY_IAM \
