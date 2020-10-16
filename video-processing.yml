@@ -93,12 +93,12 @@ Resources:
               - !Join
                 - ''
                 - - 'arn:aws:s3:::'
-                  - !ImportValue video-sharedinf-inputbucket
+                  - !Ref VideoInputBucket
                   - '/*'
               - !Join
                 - ''
                 - - 'arn:aws:s3:::'
-                  - !ImportValue video-sharedinf-outputbucket
+                  - !Ref VideoOutputBucket
                   - '/*'
       - PolicyName:
           !Join
