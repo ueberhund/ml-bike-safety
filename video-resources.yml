@@ -1,0 +1,84 @@
+Outputs:
+  Model:
+    Value: !GetAtt Model.ModelName
+  SNSTopic:
+    Value: !Ref SNSTopic
+    Export:
+      Name: video-sharedinf-snstopic-arn
+  MediaConvertServiceRole:
+    Value: !GetAtt MediaConvertServiceRole.Arn
+
+Parameters:
+  ImageUrl:
+    Type: String
+    Description: The container definition for the SageMaker model
+  ModelPath:
+    Type: String
+    Description: The S3 path to the model artifact
+
+Resources:
+  SageMakerRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - sagemaker.amazonaws.com
+          Action:
+            - 'sts:AssumeRole'
+      Path: "/service-role/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+      Policies:
+      - PolicyName:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - -SageMaker-s3-access
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - "s3:GetObject"
+              - "s3:PutObject"
+              - "s3:DeleteObject"
+              - "s3:ListBucket"
+            Resource: '*'
+
+  MediaConvertServiceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - mediaconvert.amazonaws.com
+          Action:
+            - 'sts:AssumeRole'
+      Path: "/service-role/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonSNSFullAccess
+
+  Model:
+    Type: "AWS::SageMaker::Model"
+    Properties:
+      PrimaryContainer:
+        Image: !Ref ImageUrl
+        ModelDataUrl: !Ref ModelPath
+      ExecutionRoleArn: !GetAtt SageMakerRole.Arn
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+  SNSTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      Subscription:
+        - Endpoint: "gmike@amazon.com"
+          Protocol: email
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"

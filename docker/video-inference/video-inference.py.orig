@@ -1,0 +1,338 @@
+import time
+import random
+import json
+import matplotlib.image as mpimg
+import boto3
+import os
+import uuid
+
+origin_bucket = os.environ['origin_bucket']
+input_prefix = os.environ['input_bucket_prefix']
+output_bucket = os.environ['output_bucket']
+output_prefix = os.environ['output_bucket_prefix']
+
+class videoframe:
+    def __init__(self, start_second, end_second):
+        self.start_second = start_second
+        self.end_second = end_second
+
+#######################################################
+def convert(seconds):
+    seconds = seconds % (24 * 3600)
+    hour = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds %= 60
+
+    return "%02d:%02d:%02d;00" % (hour, minutes, seconds)
+
+#######################################################
+def visualize_detection(img_file, dets, classes=[], thresh=0.3):
+
+    overlapped_images = []
+
+    #bike rectangle
+    bike_width = 0.62
+    bike_height = 0.15
+    bike_left = 0.20
+    bike_top = 0.85
+
+    img=mpimg.imread(img_file)
+    height = img.shape[0]
+    width = img.shape[1]
+
+    bike_x1 = int(bike_left * width)
+    bike_y1 = int(bike_top * height)
+    bike_x2 = int(bike_left * width + bike_width * width)
+    bike_y2 = int(bike_top * height + bike_height * height)
+
+    colors = dict()
+    for det in dets:
+        (klass, score, x0, y0, x1, y1) = det
+        if score < thresh:
+            continue
+        cls_id = int(klass)
+        if klass in [2,3,4,5,6,7]:
+            xmin = int(x0 * width)
+            ymin = int(y0 * height)
+            xmax = int(x1 * width)
+            ymax = int(y1 * height)
+
+            #Determine if we have an overlap
+            if (xmax >= bike_x1 and bike_x2 >= xmin) and (ymax >= bike_y1 and bike_y2 >= ymin):
+                overlapped_images.append(img_file)
+
+    return overlapped_images
+
+#######################################################
+def start_batch_transformation(model_name, s3_input_path, s3_output_path):
+    timestamp = time.strftime('-%Y-%m-%d-%H-%M-%S', time.gmtime())
+    batch_job_name="vehicle-classification" + timestamp
+    batch_input = s3_input_path
+    request = \
+    {
+        "TransformJobName": batch_job_name,
+        "ModelName": model_name,
+        "MaxConcurrentTransforms": 16,
+        "MaxPayloadInMB": 6,
+        "BatchStrategy": "SingleRecord",
+        "TransformOutput": {
+            "S3OutputPath": s3_output_path
+        },
+        "TransformInput": {
+            "DataSource": {
+                "S3DataSource": {
+                    "S3DataType": "S3Prefix",
+                    "S3Uri": batch_input
+                }
+            },
+            "ContentType": "application/x-image",
+            "SplitType": "None",
+            "CompressionType": "None"
+        },
+        "TransformResources": {
+                "InstanceType": "ml.p2.xlarge",
+                "InstanceCount": 1
+        }
+    }
+    sagemaker = boto3.client('sagemaker')
+    sagemaker.create_transform_job(**request)
+
+    return batch_job_name
+
+#######################################################
+def check_for_collisions(s3_input_bucket, s3_input_prefix, s3_output_bucket, s3_output_prefix):
+    import os
+
+    s3 = boto3.client('s3')
+    response = s3.list_objects(Bucket=s3_input_bucket, Prefix=s3_input_prefix)
+
+    threshold = .3
+
+    overlapped_images = []
+
+    for key in response['Contents']:
+        file_name = key['Key']
+
+        file_name1 = file_name.partition("/")[2]
+        file_name_without_prefix = file_name1.partition("/")[2]
+        response = s3.get_object(Bucket=s3_input_bucket,Key=file_name)
+
+        file1 = open(file_name_without_prefix,"wb")
+        file1.write(response['Body'].read())
+        file1.close()
+
+        key = s3_output_prefix + file_name_without_prefix + '.out'
+        result = s3.get_object(Bucket=s3_output_bucket,Key=key)["Body"].read().decode('ascii')
+        detections = json.loads(result)
+
+        object_categories = ['person', 'bicycle', 'car',  'motorbike', 'aeroplane', 'bus', 'train', 'truck', 'boat',
+                     'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog',
+                     'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag',
+                     'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat',
+                     'baseball glove', 'skateboard', 'surfboard', 'tennis racket', 'bottle', 'wine glass', 'cup',
+                     'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot',
+                     'hot dog', 'pizza', 'donut', 'cake', 'chair', 'sofa', 'pottedplant', 'bed', 'diningtable',
+                     'toilet', 'tvmonitor', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven',
+                     'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier',
+                     'toothbrush']
+
+        overlapped_images.append(visualize_detection(file_name_without_prefix, detections['prediction'], object_categories, threshold))
+
+        os.remove(file_name_without_prefix)
+
+    return overlapped_images
+
+#######################################################
+def generate_clip_times(encounters):
+    frame_list = []
+    for item in encounters:
+        if not item:
+            continue
+
+        #We've saved the frame rate as part of the file name, for ease of processing
+        file_parts = item[0].split("_")
+
+        frame_rate = file_parts[2]
+        frame_part = file_parts[3]
+        frame_num = frame_part.split(".")[0]
+        beginning_sec = int(int(frame_num) / int(float(frame_rate)))
+
+        frame_start_second = max(0, beginning_sec - 15)
+        frame_end_second = beginning_sec + 15
+
+        for item in frame_list:
+
+            print('%s %s' % (item.start_second, item.end_second))
+
+            if (item.end_second >= frame_start_second and frame_end_second >= item.start_second) :
+                item.start_second = max(0, min(item.start_second, frame_start_second))
+                item.end_second = max(item.end_second,frame_end_second)
+            else:
+                frame_list.append(videoframe(frame_start_second, frame_end_second))
+
+        if len(frame_list) == 0:
+            frame_list.append(videoframe(frame_start_second, frame_end_second))
+
+    return frame_list
+
+#######################################################
+def process_media(input_bucket, input_file, output_bucket, frames):
+    mediaconvert_endpoint_url="<MEDIACONVERT_ENDPOINT_URL>"
+    client = boto3.client('mediaconvert', endpoint_url=mediaconvert_endpoint_url)
+
+    jobs = []
+
+    for item in frames:
+        #Pass each item off to video encode
+
+        response = client.create_job(
+            Role="<MEDIACONVERT_SERVICE_ROLE>",
+            Settings={
+                "TimecodeConfig": {
+                  "Source": "ZEROBASED"
+                },
+                "OutputGroups": [
+                  {
+                    "Name": "File Group",
+                    "Outputs": [
+                      {
+                        "Preset": "System-Generic_Hd_Mp4_Avc_Aac_16x9_1920x1080p_60Hz_9Mbps",
+                        "NameModifier": "-" + str(uuid.uuid4())
+                      }
+                    ],
+                    "OutputGroupSettings": {
+                      "Type": "FILE_GROUP_SETTINGS",
+                      "FileGroupSettings": {
+                        "Destination": "s3://" + output_bucket + "/"
+                      }
+                    }
+                  }
+                ],
+                "AdAvailOffset": 0,
+                "Inputs": [
+                  {
+                    "InputClippings": [
+                      {
+                        "EndTimecode": convert(item.end_second),
+                        "StartTimecode": convert(item.start_second)
+                      }
+                    ],
+                    "AudioSelectors": {
+                      "Audio Selector 1": {
+                        "Offset": 0,
+                        "DefaultSelection": "DEFAULT",
+                        "ProgramSelection": 1
+                      }
+                    },
+                    "VideoSelector": {
+                      "ColorSpace": "FOLLOW",
+                      "Rotate": "DEGREE_0",
+                      "AlphaBehavior": "DISCARD"
+                    },
+                    "FilterEnable": "AUTO",
+                    "PsiControl": "USE_PSI",
+                    "FilterStrength": 0,
+                    "DeblockFilter": "DISABLED",
+                    "DenoiseFilter": "DISABLED",
+                    "TimecodeSource": "ZEROBASED",
+                    "FileInput": "s3://" + input_bucket + "/" + input_file
+                  }
+                ]
+              })
+        jobs.append(response)
+    return jobs
+
+#######################################################
+def generate_final_videos(orig_file, output_bucket, jobs):
+    mediaconvert_endpoint_url="<MEDIACONVERT_ENDPOINT_URL>"
+    client = boto3.client('mediaconvert', endpoint_url=mediaconvert_endpoint_url)
+
+    rendered_videos = []
+
+    for item in jobs:
+        name_modifier = item['Job']['Settings']['OutputGroups'][0]['Outputs'][0]['NameModifier']
+        orig_file_parts = orig_file.split(".")
+        rendered_videos.append(orig_file_parts[0] + name_modifier + '.' + str.lower(orig_file_parts[1]))
+
+        job_id = item['Job']['Id']
+        completed = False
+
+        while(True):
+            response = client.get_job(Id=job_id)
+            job_status = response['Job']['Status']
+
+            if job_status == 'COMPLETE':
+                print('Job ' + job_id + ' completed!')
+                break
+            if job_status == 'ERROR':
+                print('Job ' + job_id + ' errored out!')
+                break
+
+            print(job_status)
+            time.sleep(30)
+
+    return rendered_videos
+
+#######################################################
+def send_notifications(rendered_videos):
+    #Start by pre-signing URLs
+    s3 = boto3.client('s3')
+
+    video_urls = []
+    for item in rendered_videos:
+        response = s3.generate_presigned_url('get_object', Params={'Bucket': output_bucket, 'Key': item}, ExpiresIn=86400)
+        video_urls.append(response)
+
+    sns = boto3.client('sns')
+
+    message = 'We have detected ' + str(len(video_urls)) + ' incident'
+    if len(video_urls) > 1:
+        message = message + 's'
+
+    message = message + '\n\nYour video links will be active for 24 hours:\n'
+    for item in video_urls:
+        message = message + '\n' + item + '\n\n'
+
+    response = sns.publish(TopicArn='<SNS_TOPIC_ARN>',
+                                Subject='Incident Detected',
+                                Message=message)
+
+#######################################################
+#Run code
+overlapped_images = []
+
+print('Starting batch transform job to identfiy obstacles')
+batch_job_name = start_batch_transformation("<ML_MODEL_NAME>", 's3://' + output_bucket + '/' + input_prefix,
+                        's3://' + output_bucket + '/' + output_prefix)
+
+sagemaker = boto3.client('sagemaker')
+
+while(True):
+    response = sagemaker.describe_transform_job(TransformJobName=batch_job_name)
+    status = response['TransformJobStatus']
+    if status == 'Completed':
+        print("Transform job ended with status: " + status)
+        break
+    if status == 'Failed':
+        message = response['FailureReason']
+        print('Transform failed with the following error: {}'.format(message))
+        raise Exception('Transform job failed')
+
+    print(status)
+    time.sleep(30)
+
+print('Looking for potential collisions')
+encounters = check_for_collisions(output_bucket, input_prefix, output_bucket, output_prefix)
+frames = generate_clip_times(encounters)
+
+#Assumes all files are in MP4 format
+orig_file = input_prefix.split("/")[1] + ".MP4"
+
+print('Generating matching video files')
+jobs = process_media(origin_bucket, orig_file, output_bucket, frames)
+
+rendered_videos = generate_final_videos(orig_file, output_bucket, jobs)
+
+print('Sending notifications')
+send_notifications(rendered_videos)

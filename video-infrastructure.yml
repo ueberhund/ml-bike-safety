@@ -1,0 +1,140 @@
+Outputs:
+  VPCId:
+    Value: !Ref VPC
+    Export: # added to export
+      Name: video-sharedinf-vpcid
+  PublicSubnet1:
+    Value: !Ref Subnet1
+    Export:
+      Name: video-sharedinf-subnet1
+  PublicSubnet2:
+    Value: !Ref Subnet2
+    Export:
+      Name: video-sharedinf-subnet2
+  PublicSecurityGroup:
+    Value: !Ref PublicSecurityGroup
+    Export:
+      Name: video-sharedinf-publicsecuritygroup
+  MLBucket:
+    Value: !Ref MLBucket
+    Export:
+      Name: video-sharedinf-ml-bucket
+  VideoInputBucket:
+    Value: !Ref VideoInputBucket
+    Export:
+      Name: video-sharedinf-inputbucket
+  VideoOutputBucket:
+    Value: !Ref VideoOutputBucket
+    Export:
+      Name: video-sharedinf-outputbucket
+  VideoToFrameRepo:
+    Value: !Ref VideoToFrameRepo
+  VideoInferenceRepo:
+    Value: !Ref VideoInferenceRepo
+
+Resources:
+  VPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: "192.168.0.0/16"
+      EnableDnsSupport: "true"
+      EnableDnsHostnames: "true"
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+  IG:
+    Type: "AWS::EC2::InternetGateway"
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+  IGAttachment:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      InternetGatewayId: !Ref IG
+      VpcId: !Ref VPC
+  IGVPCRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+  IGVPCRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      RouteTableId: !Ref IGVPCRouteTable
+      GatewayId: !Ref IG
+  Subnet1ToRouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref IGVPCRouteTable
+      SubnetId: !Ref Subnet1
+  Subnet2ToRouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref IGVPCRouteTable
+      SubnetId: !Ref Subnet2
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: "192.168.1.0/26"
+      AvailabilityZone: !Select [0, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+      - Key: SubnetType
+        Value: Public Subnet
+      VpcId: !Ref VPC
+  Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: "192.168.2.0/26"
+      AvailabilityZone: !Select [1, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+      - Key: SubnetType
+        Value: Public Subnet
+      VpcId: !Ref VPC
+  PublicSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: Public security group
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+  MLBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+  VideoInputBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+  VideoOutputBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+  VideoToFrameRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+  VideoInferenceRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"

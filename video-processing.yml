@@ -1,0 +1,309 @@
+
+Parameters:
+  VideoToFrameContainer:
+    Type: String
+    Description: The Uri of the video-to-frame container
+  VideoInferenceContainer:
+    Type: String
+    Description: The Uri of the video-inference container
+
+Resources:
+  VideoTaskRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - ecs-tasks.amazonaws.com
+              - states.amazonaws.com
+          Action:
+            - 'sts:AssumeRole'
+      Path: "/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+      - PolicyName:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - -MediaConvertConsolePolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - "mediaconvert:*"
+            Resource: 'arn:aws:mediaconvert:*:*:*'
+      - PolicyName:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - -MediaConvertIAMPolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - "iam:PassRole"
+              - "iam:ListRoles"
+            Resource: 'arn:aws:iam::*:role/*'
+      - PolicyName:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - -MediaConvertS3Policy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - "s3:ListBucket"
+              - "s3:GetBucketLocation"
+              - "s3:ListAllMyBuckets"
+            Resource: 'arn:aws:s3:::*'
+      - PolicyName:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - -SageMakerExecutionPolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - "sagemaker:DescribeTransformJob"
+              - "sagemaker:CreateTransformJob"
+            Resource: '*'
+      - PolicyName:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - -S3AccessPolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - "s3:PutObject"
+              - "s3:GetObject"
+            Resource:
+              - !Join
+                - ''
+                - - 'arn:aws:s3:::'
+                  - !ImportValue video-sharedinf-inputbucket
+                  - '/*'
+              - !Join
+                - ''
+                - - 'arn:aws:s3:::'
+                  - !ImportValue video-sharedinf-outputbucket
+                  - '/*'
+      - PolicyName:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - -SNSPublishPolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - "sns:Publish"
+            Resource:
+              - !ImportValue video-sharedinf-snstopic-arn
+      - PolicyName:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - -EventsPolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - "events:PutTargets"
+              - "events:PutRule"
+              - "events:DescribeRule"
+            Resource:
+              - !Sub arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/*
+      - PolicyName:
+          !Join
+            - ''
+            - - !Ref AWS::StackName
+              - -RunTask
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - "ecs:RunTask"
+            Resource: "*"
+  Video2FrameLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "/ecs/video-to-frame"
+  VideoInferenceLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "/ecs/video-inference"    
+
+  VideoCluster:
+    Type: "AWS::ECS::Cluster"
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+  VideoToFrameTask:
+    Type: "AWS::ECS::TaskDefinition"
+    Properties:
+      Cpu: 2048
+      Memory: 16384
+      ContainerDefinitions:
+        -
+          Name: 'video-to-frame'
+          Image: !Ref VideoToFrameContainer
+          Essential: true
+          PortMappings:
+            -
+              ContainerPort: 5000
+              Protocol: tcp
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+               "awslogs-group": "/ecs/video-to-frame"
+               "awslogs-region": !Sub "${AWS::Region}"
+               "awslogs-stream-prefix": "ecs"
+      Family: "video-to-frame"
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt VideoTaskRole.Arn
+      TaskRoleArn: !GetAtt VideoTaskRole.Arn
+      RequiresCompatibilities:
+        - FARGATE
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+  VideoInferenceTask:
+    Type: "AWS::ECS::TaskDefinition"
+    Properties:
+      Cpu: 2048
+      Memory: 16384
+      ContainerDefinitions:
+        -
+          Name: 'video-inference'
+          Image: !Ref VideoInferenceContainer
+          Essential: true
+          PortMappings:
+            -
+              ContainerPort: 5000
+              Protocol: tcp
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+               "awslogs-group": "/ecs/video-inference"
+               "awslogs-region": !Sub "${AWS::Region}"
+               "awslogs-stream-prefix": "ecs"
+      Family: "video-inference"
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt VideoTaskRole.Arn
+      TaskRoleArn: !GetAtt VideoTaskRole.Arn
+      RequiresCompatibilities:
+        - FARGATE
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"
+  VideoStepFunction:
+    Type: "AWS::StepFunctions::StateMachine"
+    Properties:
+      DefinitionString:
+        !Sub
+          - |-
+            {
+              "Comment": "A video processing pipeline for bike safety",
+              "StartAt": "video-to-frame",
+              "States": {
+                "video-to-frame": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::ecs:runTask.sync",
+                  "Parameters": {
+                    "LaunchType": "FARGATE",
+                      "Cluster": "${VideoCluster.Arn}",
+                      "TaskDefinition": "${VideoToFrameTask}",
+                      "NetworkConfiguration": {
+                        "AwsvpcConfiguration": {
+                          "Subnets": ["${Subnet1}","${Subnet2}"],
+                          "SecurityGroups":["${SecurityGroup}"],
+                          "AssignPublicIp":"ENABLED"
+                        }
+                      },
+                    "Overrides": {
+                      "ContainerOverrides": [
+                        {
+                          "Name": "video-to-frame",
+                          "Environment": [
+                            {
+                              "Name": "s3",
+                              "Value.$": "$.s3_input"
+                            },
+                            {
+                              "Name":"key",
+                              "Value.$": "$.s3_input_file"
+                            },
+                            {
+                              "Name":"output",
+                              "Value.$": "$.s3_output"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "ResultPath": null,
+                  "Next": "video-inference"
+                },
+                "video-inference": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::ecs:runTask.sync",
+                  "Parameters": {
+                    "LaunchType": "FARGATE",
+                      "Cluster": "${VideoCluster.Arn}",
+                      "TaskDefinition": "${VideoInferenceTask}",
+                      "NetworkConfiguration": {
+                        "AwsvpcConfiguration": {
+                          "Subnets": ["${Subnet1}","${Subnet2}"],
+                          "SecurityGroups":["${SecurityGroup}"],
+                          "AssignPublicIp":"ENABLED"
+                        }
+                     },
+                     "Overrides": {
+                      "ContainerOverrides": [
+                        {
+                          "Name": "video-inference",
+                          "Environment": [
+                            {
+                              "Name": "origin_bucket",
+                              "Value.$": "$.s3_input"
+                            },
+                            {
+                               "Name": "input_bucket_prefix",
+                                "Value.$": "$.input_bucket_prefix"
+                            },
+                            {
+                              "Name":"output_bucket",
+                              "Value.$": "$.s3_output"
+                            },
+                            {
+                              "Name": "output_bucket_prefix",
+                              "Value.$": "$.output_bucket_prefix"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "End": true
+                }
+              }
+            }
+          - {
+              Subnet1: !ImportValue video-sharedinf-subnet1,
+              Subnet2: !ImportValue video-sharedinf-subnet2,
+              SecurityGroup: !ImportValue video-sharedinf-publicsecuritygroup
+            }
+      RoleArn: !GetAtt VideoTaskRole.Arn
+      Tags:
+      - Key: Name
+        Value: !Ref "AWS::StackName"

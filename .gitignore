@@ -1,0 +1,10 @@
+
+.DS_Store
+docker/.DS_Store
+docker/video-inference/docker-compose.override.yml
+docker/video-inference/docker-compose.ym
+docker/video-inference/video-inference.py
+docker/video-inference/video-inference.py-e
+docker/video-to-frame/docker-compose.override.yml
+docker/video-to-frame/docker-compose.yml
+docker-compose.yml
