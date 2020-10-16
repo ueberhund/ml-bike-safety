@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+echo "What is your email address (used for the SNS notification)?"
+read EMAIL_ADDRESS
+
 #Check to make sure all required commands are installed
 if ! command -v jq &> /dev/null
 then
@@ -93,6 +96,7 @@ ML_STACK_ID=$( aws cloudformation create-stack --stack-name ${ML_STACK_NAME} \
   --template-body file://video-resources.yml \
   --parameters ParameterKey=ImageUrl,ParameterValue=${SAGEMAKER_ECR_PATH} \
                ParameterKey=ModelPath,ParameterValue=${MODEL_PATH} \
+               ParameterKey=EmailAddress,ParameterValue=${EMAIL_ADDRESS}
   --capabilities CAPABILITY_IAM \
   | jq -r .StackId \
 )
@@ -150,3 +154,4 @@ STEP_STACK_ID=$( aws cloudformation create-stack --stack-name ${STEP_STACK_NAME}
 aws cloudformation wait stack-create-complete --stack-name ${STEP_STACK_ID}
 
 echo "Congratulations! Your stack is now complete!"
+echo "You can begin by uploading a file to s3://${VIDEO_INPUT_BUCKET}"

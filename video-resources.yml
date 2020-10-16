@@ -15,6 +15,9 @@ Parameters:
   ModelPath:
     Type: String
     Description: The S3 path to the model artifact
+  EmailAddress:
+    Type: String
+    Description: The email address for the SNS notification
 
 Resources:
   SageMakerRole:
@@ -77,7 +80,7 @@ Resources:
     Type: "AWS::SNS::Topic"
     Properties:
       Subscription:
-        - Endpoint: "gmike@amazon.com"
+        - Endpoint: !Ref EmailAddress
           Protocol: email
       Tags:
       - Key: Name
