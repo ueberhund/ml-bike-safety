@@ -96,7 +96,7 @@ ML_STACK_ID=$( aws cloudformation create-stack --stack-name ${ML_STACK_NAME} \
   --template-body file://video-resources.yml \
   --parameters ParameterKey=ImageUrl,ParameterValue=${SAGEMAKER_ECR_PATH} \
                ParameterKey=ModelPath,ParameterValue=${MODEL_PATH} \
-               ParameterKey=EmailAddress,ParameterValue=${EMAIL_ADDRESS}
+               ParameterKey=EmailAddress,ParameterValue=${EMAIL_ADDRESS} \
   --capabilities CAPABILITY_IAM \
   | jq -r .StackId \
 )
