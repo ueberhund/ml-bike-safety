@@ -30,7 +30,7 @@ STACK_NAME='video-infra'
 REGION=$(aws configure get region)
 ACCOUNT_ID=$(aws sts get-caller-identity | jq '.Account' -r)
 
-if [[ $REGION -ne ""]]; then
+if [ -z "$REGION" ]; then
     echo "Please set a region by running 'aws configure'"
     exit
 fi
@@ -58,8 +58,9 @@ VIDEO_TO_FRAME_REPO=$(echo $CFN_OUTPUT | jq '.[] | select(.OutputKey | contains(
 VIDEO_INF_REPO=$(echo $CFN_OUTPUT | jq '.[] | select(.OutputKey | contains("VideoInferenceRepo")).OutputValue' -r)
 
 #Upload the ML model_name
-aws s3 sync s3://aws-gmike-public-us-west-2/video-processing-model/model.tar.gz s3://$ML_BUCKET/model/model.tar.gz
 MODEL_PATH="s3://${ML_BUCKET}/model/model.tar.gz"
+aws s3 cp s3://aws-gmike-public-us-west-2/video-processing-model/model.tar.gz ${MODEL_PATH}
+#echo $MODEL_PATH
 
 #If using a different region, you'll need to get the right path, available here:
 #https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-algo-docker-registry-paths.html
@@ -136,8 +137,9 @@ docker push $DOCKER_URL_2:1
 
 #Deploy the rest of the stack
 echo "Building the Fargate tasks and step functions"
+cd ../..
 STEP_STACK_NAME="${STACK_NAME}-compute"
-STEP_STACK_ID=$(aws cloudformation create-stack --stack-name ${STEP_STACK_NAME} \
+STEP_STACK_ID=$( aws cloudformation create-stack --stack-name ${STEP_STACK_NAME} \
   --template-body file://video-processing.yml \
   --parameters ParameterKey=VideoToFrameContainer,ParameterValue=${DOCKER_URL_1} \
                ParameterKey=VideoInferenceContainer,ParameterValue=${DOCKER_URL_2} \
