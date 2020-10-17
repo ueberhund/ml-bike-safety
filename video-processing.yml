@@ -319,6 +319,8 @@ Resources:
       FunctionName: !GetAtt LambdaListener.Arn
       Action: "lambda:InvokeFunction"
       Principal: "s3.amazonaws.com"
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !Sub 'arn:aws:s3:::${AWS::StackName}-input-bucket'
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
