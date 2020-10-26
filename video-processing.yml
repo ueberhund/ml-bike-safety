@@ -399,7 +399,7 @@ Resources:
   VideoInputBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub ${AWS::StackName}-input-bucket
+      BucketName: !Sub ${AWS::StackName}-${AWS::AccountId}-${AWS::Region}-input-bucket
       NotificationConfiguration:
         LambdaConfigurations:
           - Event: s3:ObjectCreated:*
@@ -415,7 +415,7 @@ Resources:
   VideoOutputBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub ${AWS::StackName}-output-bucket
+      BucketName: !Sub ${AWS::StackName}-${AWS::AccountId}-${AWS::Region}-output-bucket
       Tags:
       - Key: Name
         Value: !Ref "AWS::StackName"
