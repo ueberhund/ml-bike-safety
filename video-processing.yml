@@ -93,12 +93,12 @@ Resources:
               - !Join
                 - ''
                 - - 'arn:aws:s3:::'
-                  - !Sub ${AWS::StackName}-input-bucket
+                  - !Sub ${AWS::StackName}-${AWS::AccountId}-${AWS::Region}-input-bucket
                   - '/*'
               - !Join
                 - ''
                 - - 'arn:aws:s3:::'
-                  - !Sub ${AWS::StackName}-output-bucket
+                  - !Sub ${AWS::StackName}-${AWS::AccountId}-${AWS::Region}-output-bucket
                   - '/*'
       - PolicyName:
           !Join
@@ -320,7 +320,7 @@ Resources:
       Action: "lambda:InvokeFunction"
       Principal: "s3.amazonaws.com"
       SourceAccount: !Ref AWS::AccountId
-      SourceArn: !Sub 'arn:aws:s3:::${AWS::StackName}-input-bucket'
+      SourceArn: !Sub 'arn:aws:s3:::${AWS::StackName}-${AWS::AccountId}-${AWS::Region}-input-bucket'
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
