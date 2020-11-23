@@ -11,3 +11,6 @@ To run this, you can simply run the install_stack.sh file. This script deploys 3
 Once complete, you simply upload your video to the input bucket. The stack analyzes your video, and if there are any "close calls" with a vehicle, it will output a video and place it in the output bucket. You'll also receive a notification with a direct link to the video.
 
 Safe cycling and keep the rubber side down!
+
+
+NOTE: If you run this in Cloud9, make sure to double the size of the drive. One of the Docker images that is built is pretty big and will error out on Cloud9 if you don't give it at least 20GB of space.
