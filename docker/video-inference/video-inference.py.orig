@@ -27,15 +27,15 @@ def convert(seconds):
     return "%02d:%02d:%02d;00" % (hour, minutes, seconds)
 
 #######################################################
-def visualize_detection(img_file, dets, classes=[], thresh=0.3):
+def visualize_detection(img_file, dets, classes=[], thresh=0.2):
 
     overlapped_images = []
 
     #bike rectangle
-    bike_width = 0.62
-    bike_height = 0.15
-    bike_left = 0.20
-    bike_top = 0.85
+    bike_width = 0.82
+    bike_height = 0.25
+    bike_left = 0.10
+    bike_top = 0.75
 
     img=mpimg.imread(img_file)
     height = img.shape[0]
