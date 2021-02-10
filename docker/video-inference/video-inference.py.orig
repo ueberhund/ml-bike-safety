@@ -153,8 +153,8 @@ def generate_clip_times(encounters):
         #We've saved the frame rate as part of the file name, for ease of processing
         file_parts = item[0].split("_")
 
-        frame_rate = file_parts[2]
-        frame_part = file_parts[3]
+        frame_rate = file_parts[len(file_parts) - 2]
+        frame_part = file_parts[len(file_parts) - 1]
         frame_num = frame_part.split(".")[0]
         beginning_sec = int(int(frame_num) / int(float(frame_rate)))
 
@@ -163,7 +163,7 @@ def generate_clip_times(encounters):
 
         for item in frame_list:
 
-            print('%s %s' % (item.start_second, item.end_second))
+            #print('%s %s' % (item.start_second, item.end_second))
 
             if (item.end_second >= frame_start_second and frame_end_second >= item.start_second) :
                 item.start_second = max(0, min(item.start_second, frame_start_second))
