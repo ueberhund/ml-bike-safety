@@ -34,9 +34,13 @@ def video_to_frames(video, output_base_dir, fps):
     # extract frames from a video and save to directory with the name of the video and file name 'video_name_x.jpg' where
     # x is the frame index
 
-    relative_fps = fps / 2
+    fps = int(round(fps))
+    relative_fps = round(fps / 2)
 
     vidcap = cv2.VideoCapture(video)
+    total_frame_count = vidcap.get(cv2.CAP_PROP_FRAME_COUNT)
+    print("Total frame count: {}".format(total_frame_count))
+
     count = 0
     filename = os.path.split(video)[1]
     prefix = os.path.splitext(filename)[0]
@@ -46,13 +50,20 @@ def video_to_frames(video, output_base_dir, fps):
     start = time.time()
     while vidcap.isOpened():
         success, image = vidcap.read()
+        if not success:
+            if count > 0 and count < total_frame_count:
+                success = True
+
         if success:
             # Add padding to the frame index. e.g. 1 -> 000001, 10 -> 000010 etc.
             count += 1
 
             if count % relative_fps == 0:
-                image_name = prefix + '_{0}_{1:06d}.jpg'.format(fps, count)
-                cv2.imwrite(os.path.join(frame_sub_dir, image_name), image)
+                try:
+                    image_name = prefix + '_{0}_{1:06d}.jpg'.format(fps, count)
+                    cv2.imwrite(os.path.join(frame_sub_dir, image_name), image)
+                except:
+                    print("Ignoring blank frame...")
 
             if count % REPORT_STATUS == 0:
                 logger.info("extracted {} frames. ".format(count))
