@@ -32,9 +32,9 @@ def visualize_detection(img_file, dets, classes=[], thresh=0.2):
     overlapped_images = []
 
     #bike rectangle
-    bike_width = 0.82
+    bike_width = 0.72
     bike_height = 0.25
-    bike_left = 0.10
+    bike_left = 0.13
     bike_top = 0.75
 
     img=mpimg.imread(img_file)
@@ -161,17 +161,14 @@ def generate_clip_times(encounters):
         frame_start_second = max(0, beginning_sec - 15)
         frame_end_second = beginning_sec + 15
 
-        for item in frame_list:
+        found_frame = False
+        for frame in frame_list:
+            if (frame.end_second >= frame_start_second and frame_end_second >= frame.start_second) :
+                found_frame = True
+                frame.start_second = max(0, min(frame.start_second, frame_start_second))
+                frame.end_second = max(frame.end_second,frame_end_second)
 
-            #print('%s %s' % (item.start_second, item.end_second))
-
-            if (item.end_second >= frame_start_second and frame_end_second >= item.start_second) :
-                item.start_second = max(0, min(item.start_second, frame_start_second))
-                item.end_second = max(item.end_second,frame_end_second)
-            else:
-                frame_list.append(videoframe(frame_start_second, frame_end_second))
-
-        if len(frame_list) == 0:
+        if found_frame == False:
             frame_list.append(videoframe(frame_start_second, frame_end_second))
 
     return frame_list
@@ -227,7 +224,7 @@ def process_media(input_bucket, input_file, output_bucket, frames):
                     },
                     "VideoSelector": {
                       "ColorSpace": "FOLLOW",
-                      "Rotate": "DEGREE_0",
+                      "Rotate": "AUTO",
                       "AlphaBehavior": "DISCARD"
                     },
                     "FilterEnable": "AUTO",
