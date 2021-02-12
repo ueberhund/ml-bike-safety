@@ -158,8 +158,8 @@ def generate_clip_times(encounters):
         frame_num = frame_part.split(".")[0]
         beginning_sec = int(int(frame_num) / int(float(frame_rate)))
 
-        frame_start_second = max(0, beginning_sec - 15)
-        frame_end_second = beginning_sec + 15
+        frame_start_second = max(0, beginning_sec - 5)
+        frame_end_second = beginning_sec + 5
 
         found_frame = False
         for frame in frame_list:
