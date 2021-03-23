@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-echo "What is your email address (used for the SNS notification)?"
-read EMAIL_ADDRESS
+set -e 
 
 #Check to make sure all required commands are installed
 if ! command -v jq &> /dev/null
@@ -28,6 +27,9 @@ if [[ $? -ne 0 ]]; then
     exit
 fi
 
+echo "What is your email address (used for the SNS notification)?"
+read EMAIL_ADDRESS
+
 STACK_NAME='video-infra'
 
 REGION=$(aws configure get region)
@@ -38,6 +40,15 @@ if [ -z "$REGION" ]; then
     exit
 fi
 
+FOUND="NO"
+if [[ "$REGION" =~ ^(us-west-2|us-east-1|us-east-2|eu-central-1|eu-north-1|eu-west-1|eu-west-2|eu-west-3|ap-southeast-1|ap-southeast-2)$ ]]; then
+    FOUND="YES"
+fi 
+
+if [ $FOUND = "NO" ]; then
+    echo "The current region is not supported. Please update the SageMaker images and re-run."
+    exit 
+fi 
 
 echo "Creating stack..."
 STACK_ID=$( aws cloudformation create-stack --stack-name ${STACK_NAME} \
@@ -74,6 +85,8 @@ readonly paths=(
       'eu-west-1|685385470294.dkr.ecr.eu-west-1.amazonaws.com'
       'eu-west-2|644912444149.dkr.ecr.eu-west-2.amazonaws.com'
       'eu-west-3|749696950732.dkr.ecr.eu-west-3.amazonaws.com'
+      'ap-southeast-1|475088953585.dkr.ecr.ap-southeast-1.amazonaws.com'
+      'ap-southeast-2|544295431143.dkr.ecr.ap-southeast-2.amazonaws.com'
 )
 
 for fields in ${paths[@]}
