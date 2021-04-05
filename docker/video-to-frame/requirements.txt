@@ -2,7 +2,5 @@ boto3
 numpy
 Pillow
 opencv-python
-torchvision
-torch
 scikit-image
 matplotlib

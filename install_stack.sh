@@ -2,22 +2,30 @@
 
 set -e 
 
+file_size=$(stat -c %s "./model/model.tar.gz")
+
+if [ "$file_size" -lt "100000" ]; 
+then
+    echo "It looks like you may not have git lfs installed. Make sure that is installed and then re-pull the repo"
+    exit
+fi 
+
 #Check to make sure all required commands are installed
 if ! command -v jq &> /dev/null
 then
-    echo "jq could not be found"
+    echo "jq could not be found. Please install and then re-run the installer"
     exit
 fi
 
 if ! command -v aws &> /dev/null
 then
-    echo "aws could not be found"
+    echo "aws could not be found. Please install and then re-run the installer"
     exit
 fi
 
 if ! command -v docker &> /dev/null
 then
-    echo "docker could not be found"
+    echo "docker could not be found. Please install and then re-run the installer"
     exit
 fi
 
@@ -26,11 +34,6 @@ if [[ $? -ne 0 ]]; then
     echo "Docker does not seem to be running, run it first and retry"
     exit
 fi
-
-echo "What is your email address (used for the SNS notification)?"
-read EMAIL_ADDRESS
-
-STACK_NAME='video-infra'
 
 REGION=$(aws configure get region)
 ACCOUNT_ID=$(aws sts get-caller-identity | jq '.Account' -r)
@@ -49,6 +52,11 @@ if [ $FOUND = "NO" ]; then
     echo "The current region is not supported. Please update the SageMaker images and re-run."
     exit 
 fi 
+
+echo "What is your email address (used for the SNS notification)?"
+read EMAIL_ADDRESS
+
+STACK_NAME='video-infra'
 
 echo "Creating stack..."
 STACK_ID=$( aws cloudformation create-stack --stack-name ${STACK_NAME} \

@@ -8,8 +8,6 @@ import skimage
 import skimage.io as io
 import skimage.transform
 import numpy as np
-import torchvision
-import torch
 import time
 import boto3
 import shutil
