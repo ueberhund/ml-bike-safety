@@ -71,7 +71,7 @@ VIDEO_INF_REPO=$(echo $CFN_OUTPUT | jq '.[] | select(.OutputKey | contains("Vide
 
 #Upload the ML model_name
 MODEL_PATH="s3://${ML_BUCKET}/model/model.tar.gz"
-aws s3 cp s3://aws-gmike-public-us-west-2/video-processing-model/model.tar.gz ${MODEL_PATH}
+aws s3 cp ./model/model.tar.gz ${MODEL_PATH}
 
 #If using a different region, you'll need to get the right path, available here:
 #https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-algo-docker-registry-paths.html
