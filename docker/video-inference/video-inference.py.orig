@@ -115,7 +115,7 @@ def check_for_collisions(s3_input_bucket, s3_input_prefix, s3_output_bucket, s3_
     
     for key in response['Contents']:
         file_name = key['Key']
-
+        
         file_name1 = file_name.split("/")
         file_name_without_prefix = file_name1[len(file_name1) - 1]
         
@@ -132,7 +132,7 @@ def check_for_collisions(s3_input_bucket, s3_input_prefix, s3_output_bucket, s3_
             width = img.shape[1]
             
 
-        key = s3_output_prefix + file_name_without_prefix + '.out'
+        key = s3_output_prefix + "/" + file_name_without_prefix + '.out'
         
         result = s3.get_object(Bucket=s3_input_bucket,Key=key)["Body"].read().decode('ascii')
         detections = json.loads(result)
