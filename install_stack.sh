@@ -74,19 +74,19 @@ MODEL_PATH="s3://${ML_BUCKET}/model/model.tar.gz"
 aws s3 cp ./model/model.tar.gz ${MODEL_PATH}
 
 #If using a different region, you'll need to get the right path, available here:
-#https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-algo-docker-registry-paths.html
+#https://github.com/aws/deep-learning-containers/blob/master/available_images.md
 SAGEMAKER_ECR_PATH=''
 readonly paths=(
-      'us-west-2|763104351884.dkr.ecr.us-west-2.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
-      'us-east-1|763104351884.dkr.ecr.us-east-1.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
-      'us-east-2|763104351884.dkr.ecr.us-east-2.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
-      'eu-central-1|763104351884.dkr.ecr.eu-central-1.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
-      'eu-north-1|763104351884.dkr.ecr.eu-north-1.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
-      'eu-west-1|763104351884.dkr.ecr.eu-west-1.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
-      'eu-west-2|763104351884.dkr.ecr.eu-west-2.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
-      'eu-west-3|763104351884.dkr.ecr.eu-west-3.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
-      'ap-southeast-1|763104351884.dkr.ecr.ap-southeast-1.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
-      'ap-southeast-2|763104351884.dkr.ecr.ap-southeast-2.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
+      'us-west-2|763104351884.dkr.ecr.us-west-2.amazonaws.com'
+      'us-east-1|763104351884.dkr.ecr.us-east-1.amazonaws.com'
+      'us-east-2|763104351884.dkr.ecr.us-east-2.amazonaws.com'
+      'eu-central-1|763104351884.dkr.ecr.eu-central-1.amazonaws.com'
+      'eu-north-1|763104351884.dkr.ecr.eu-north-1.amazonaws.com'
+      'eu-west-1|763104351884.dkr.ecr.eu-west-1.amazonaws.com'
+      'eu-west-2|763104351884.dkr.ecr.eu-west-2.amazonaws.com'
+      'eu-west-3|763104351884.dkr.ecr.eu-west-3.amazonaws.com'
+      'ap-southeast-1|763104351884.dkr.ecr.ap-southeast-1.amazonaws.com'
+      'ap-southeast-2|763104351884.dkr.ecr.ap-southeast-2.amazonaws.com'
 )
 
 for fields in ${paths[@]}
@@ -97,7 +97,7 @@ do
   fi
 done
 
-SAGEMAKER_ECR_PATH="${SAGEMAKER_ECR_PATH}/object-detection:1"
+SAGEMAKER_ECR_PATH="${SAGEMAKER_ECR_PATH}/mxnet-inference:1.8.0-gpu-py37"
 
 ML_STACK_NAME="${STACK_NAME}-ml-model"
 

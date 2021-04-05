@@ -382,7 +382,7 @@ Resources:
 
                   client = boto3.client('stepfunctions')
                   key_parts = key.split(".")
-                  step_json = "{{ \"s3_input\" : \"{0}\", \"s3_input_file\" : \"{1}\", \"s3_output\" : \"${VideoOutputBucket}\", \"input_bucket_prefix\" : \"bike/{2}/\", \"output_bucket_prefix\": \"batch-inference/\"}}".format(bucket, key, key_parts[0])
+                  step_json = "{{ \"s3_input\" : \"{0}\", \"s3_input_file\" : \"{1}\", \"s3_output\" : \"${VideoOutputBucket}\", \"input_bucket_prefix\" : \"bike/{2}/\", \"output_bucket_prefix\": \"batch-inference/{2}\"}}".format(bucket, key, key_parts[0])
 
                   response = client.start_execution(stateMachineArn="${VideoStepFunction.Arn}", input=step_json)
 
