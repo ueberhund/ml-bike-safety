@@ -72,6 +72,7 @@ Resources:
       PrimaryContainer:
         Image: !Ref ImageUrl
         ModelDataUrl: !Ref ModelPath
+        Environment: { "SAGEMAKER_PROGRAM": "detection_server.py" }
       ExecutionRoleArn: !GetAtt SageMakerRole.Arn
       Tags:
       - Key: Name

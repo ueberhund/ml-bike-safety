@@ -77,16 +77,16 @@ aws s3 cp s3://aws-gmike-public-us-west-2/video-processing-model/model.tar.gz ${
 #https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-algo-docker-registry-paths.html
 SAGEMAKER_ECR_PATH=''
 readonly paths=(
-      'us-west-2|433757028032.dkr.ecr.us-west-2.amazonaws.com'
-      'us-east-1|811284229777.dkr.ecr.us-east-1.amazonaws.com'
-      'us-east-2|825641698319.dkr.ecr.us-east-2.amazonaws.com'
-      'eu-central-1|813361260812.dkr.ecr.eu-central-1.amazonaws.com'
-      'eu-north-1|669576153137.dkr.ecr.eu-north-1.amazonaws.com'
-      'eu-west-1|685385470294.dkr.ecr.eu-west-1.amazonaws.com'
-      'eu-west-2|644912444149.dkr.ecr.eu-west-2.amazonaws.com'
-      'eu-west-3|749696950732.dkr.ecr.eu-west-3.amazonaws.com'
-      'ap-southeast-1|475088953585.dkr.ecr.ap-southeast-1.amazonaws.com'
-      'ap-southeast-2|544295431143.dkr.ecr.ap-southeast-2.amazonaws.com'
+      'us-west-2|763104351884.dkr.ecr.us-west-2.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
+      'us-east-1|763104351884.dkr.ecr.us-east-1.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
+      'us-east-2|763104351884.dkr.ecr.us-east-2.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
+      'eu-central-1|763104351884.dkr.ecr.eu-central-1.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
+      'eu-north-1|763104351884.dkr.ecr.eu-north-1.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
+      'eu-west-1|763104351884.dkr.ecr.eu-west-1.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
+      'eu-west-2|763104351884.dkr.ecr.eu-west-2.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
+      'eu-west-3|763104351884.dkr.ecr.eu-west-3.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
+      'ap-southeast-1|763104351884.dkr.ecr.ap-southeast-1.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
+      'ap-southeast-2|763104351884.dkr.ecr.ap-southeast-2.amazonaws.com/mxnet-inference:1.8.0-gpu-py37'
 )
 
 for fields in ${paths[@]}
