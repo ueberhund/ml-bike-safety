@@ -27,42 +27,43 @@ def convert(seconds):
     return "%02d:%02d:%02d;00" % (hour, minutes, seconds)
 
 #######################################################
-def visualize_detection(img_file, dets, classes=[], thresh=0.2):
-
+def visualize_detection(img_file, dets, thresh, img_height, img_width):
+    SCALE_FACTOR = 1.89             #Scaling factor used to resize the bounding box from the inference image size
+    
+    bb_list = []
     overlapped_images = []
 
+    for item in dets[0]:
+        box_ids, scores, bboxes = item[0],item[1],item[2:]
+        
+        if scores > thresh:
+            bb_list.append(bboxes)
+        
     #bike rectangle
-    bike_width = 0.72
+    bike_width = 0.65
     bike_height = 0.25
     bike_left = 0.13
     bike_top = 0.75
 
-    img=mpimg.imread(img_file)
-    height = img.shape[0]
-    width = img.shape[1]
+    bike_x1 = int(bike_left * img_width)
+    bike_y1 = int(bike_top * img_height)
+    bike_x2 = int(bike_left * img_width + bike_width * img_width)
+    bike_y2 = int(bike_top * img_height + bike_height * img_height)
 
-    bike_x1 = int(bike_left * width)
-    bike_y1 = int(bike_top * height)
-    bike_x2 = int(bike_left * width + bike_width * width)
-    bike_y2 = int(bike_top * height + bike_height * height)
+    for item in bb_list:
+        xmin, ymin, xmax, ymax = item[0], item[1], item[2], item[3]
 
-    colors = dict()
-    for det in dets:
-        (klass, score, x0, y0, x1, y1) = det
-        if score < thresh:
-            continue
-        cls_id = int(klass)
-        if klass in [2,3,4,5,6,7]:
-            xmin = int(x0 * width)
-            ymin = int(y0 * height)
-            xmax = int(x1 * width)
-            ymax = int(y1 * height)
+        xmin = int(xmin * SCALE_FACTOR)
+        xmax = int(xmax * SCALE_FACTOR)
+        ymin = int(ymin * SCALE_FACTOR)
+        ymax = int(ymax * SCALE_FACTOR)
 
-            #Determine if we have an overlap
-            if (xmax >= bike_x1 and bike_x2 >= xmin) and (ymax >= bike_y1 and bike_y2 >= ymin):
-                overlapped_images.append(img_file)
+        if (xmax >= bike_x1 and bike_x2 >= xmin) and (ymax >= bike_y1 and bike_y2 >= ymin):
+            overlapped_images.append(img_file)
+            break                                 #We only care about the first collision
 
     return overlapped_images
+
 
 #######################################################
 def start_batch_transformation(model_name, s3_input_path, s3_output_path):
@@ -73,8 +74,8 @@ def start_batch_transformation(model_name, s3_input_path, s3_output_path):
     {
         "TransformJobName": batch_job_name,
         "ModelName": model_name,
-        "MaxConcurrentTransforms": 16,
-        "MaxPayloadInMB": 6,
+        "MaxConcurrentTransforms": 25,
+        "MaxPayloadInMB": 4,
         "BatchStrategy": "SingleRecord",
         "TransformOutput": {
             "S3OutputPath": s3_output_path
@@ -91,7 +92,7 @@ def start_batch_transformation(model_name, s3_input_path, s3_output_path):
             "CompressionType": "None"
         },
         "TransformResources": {
-                "InstanceType": "ml.p2.xlarge",
+                "InstanceType": "ml.p3.2xlarge",
                 "InstanceCount": 1
         }
     }
@@ -102,44 +103,40 @@ def start_batch_transformation(model_name, s3_input_path, s3_output_path):
 
 #######################################################
 def check_for_collisions(s3_input_bucket, s3_input_prefix, s3_output_bucket, s3_output_prefix):
-    import os
-
     s3 = boto3.client('s3')
     response = s3.list_objects(Bucket=s3_input_bucket, Prefix=s3_input_prefix)
 
-    threshold = .3
+    threshold = .9
 
     overlapped_images = []
 
+    height = 0
+    width = 0
+    
     for key in response['Contents']:
         file_name = key['Key']
+        
+        file_name1 = file_name.split("/")
+        file_name_without_prefix = file_name1[len(file_name1) - 1]
+        
+        if height == 0 or width == 0:
+            s3_stream = boto3.resource('s3')
+            bucket = s3_stream.Bucket(s3_input_bucket)
+            object = bucket.Object(file_name)
+            
+            with open('sample-img.jpg', 'wb') as data:
+                object.download_fileobj(data)
+            
+            img=mpimg.imread('sample-img.jpg')
+            height = img.shape[0]
+            width = img.shape[1]
+            
 
-        file_name1 = file_name.partition("/")[2]
-        file_name_without_prefix = file_name1.partition("/")[2]
-        response = s3.get_object(Bucket=s3_input_bucket,Key=file_name)
-
-        file1 = open(file_name_without_prefix,"wb")
-        file1.write(response['Body'].read())
-        file1.close()
-
-        key = s3_output_prefix + file_name_without_prefix + '.out'
-        result = s3.get_object(Bucket=s3_output_bucket,Key=key)["Body"].read().decode('ascii')
+        key = s3_output_prefix + "/" + file_name_without_prefix + '.out'
+        
+        result = s3.get_object(Bucket=s3_input_bucket,Key=key)["Body"].read().decode('ascii')
         detections = json.loads(result)
-
-        object_categories = ['person', 'bicycle', 'car',  'motorbike', 'aeroplane', 'bus', 'train', 'truck', 'boat',
-                     'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog',
-                     'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag',
-                     'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat',
-                     'baseball glove', 'skateboard', 'surfboard', 'tennis racket', 'bottle', 'wine glass', 'cup',
-                     'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot',
-                     'hot dog', 'pizza', 'donut', 'cake', 'chair', 'sofa', 'pottedplant', 'bed', 'diningtable',
-                     'toilet', 'tvmonitor', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven',
-                     'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier',
-                     'toothbrush']
-
-        overlapped_images.append(visualize_detection(file_name_without_prefix, detections['prediction'], object_categories, threshold))
-
-        os.remove(file_name_without_prefix)
+        overlapped_images.append(visualize_detection(file_name, detections, threshold, height, width))
 
     return overlapped_images
 

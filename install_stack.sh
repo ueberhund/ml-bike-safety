@@ -2,22 +2,30 @@
 
 set -e 
 
+file_size=$(stat -c %s "./model/model.tar.gz")
+
+if [ "$file_size" -lt "100000" ]; 
+then
+    echo "It looks like you may not have git lfs installed. Make sure that is installed and then re-clone the repo"
+    exit
+fi 
+
 #Check to make sure all required commands are installed
 if ! command -v jq &> /dev/null
 then
-    echo "jq could not be found"
+    echo "jq could not be found. Please install and then re-run the installer"
     exit
 fi
 
 if ! command -v aws &> /dev/null
 then
-    echo "aws could not be found"
+    echo "aws could not be found. Please install and then re-run the installer"
     exit
 fi
 
 if ! command -v docker &> /dev/null
 then
-    echo "docker could not be found"
+    echo "docker could not be found. Please install and then re-run the installer"
     exit
 fi
 
@@ -26,11 +34,6 @@ if [[ $? -ne 0 ]]; then
     echo "Docker does not seem to be running, run it first and retry"
     exit
 fi
-
-echo "What is your email address (used for the SNS notification)?"
-read EMAIL_ADDRESS
-
-STACK_NAME='video-infra'
 
 REGION=$(aws configure get region)
 ACCOUNT_ID=$(aws sts get-caller-identity | jq '.Account' -r)
@@ -49,6 +52,11 @@ if [ $FOUND = "NO" ]; then
     echo "The current region is not supported. Please update the SageMaker images and re-run."
     exit 
 fi 
+
+echo "What is your email address (used for the SNS notification)?"
+read EMAIL_ADDRESS
+
+STACK_NAME='video-infra'
 
 echo "Creating stack..."
 STACK_ID=$( aws cloudformation create-stack --stack-name ${STACK_NAME} \
@@ -71,22 +79,22 @@ VIDEO_INF_REPO=$(echo $CFN_OUTPUT | jq '.[] | select(.OutputKey | contains("Vide
 
 #Upload the ML model_name
 MODEL_PATH="s3://${ML_BUCKET}/model/model.tar.gz"
-aws s3 cp s3://aws-gmike-public-us-west-2/video-processing-model/model.tar.gz ${MODEL_PATH}
+aws s3 cp ./model/model.tar.gz ${MODEL_PATH}
 
 #If using a different region, you'll need to get the right path, available here:
-#https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-algo-docker-registry-paths.html
+#https://github.com/aws/deep-learning-containers/blob/master/available_images.md
 SAGEMAKER_ECR_PATH=''
 readonly paths=(
-      'us-west-2|433757028032.dkr.ecr.us-west-2.amazonaws.com'
-      'us-east-1|811284229777.dkr.ecr.us-east-1.amazonaws.com'
-      'us-east-2|825641698319.dkr.ecr.us-east-2.amazonaws.com'
-      'eu-central-1|813361260812.dkr.ecr.eu-central-1.amazonaws.com'
-      'eu-north-1|669576153137.dkr.ecr.eu-north-1.amazonaws.com'
-      'eu-west-1|685385470294.dkr.ecr.eu-west-1.amazonaws.com'
-      'eu-west-2|644912444149.dkr.ecr.eu-west-2.amazonaws.com'
-      'eu-west-3|749696950732.dkr.ecr.eu-west-3.amazonaws.com'
-      'ap-southeast-1|475088953585.dkr.ecr.ap-southeast-1.amazonaws.com'
-      'ap-southeast-2|544295431143.dkr.ecr.ap-southeast-2.amazonaws.com'
+      'us-west-2|763104351884.dkr.ecr.us-west-2.amazonaws.com'
+      'us-east-1|763104351884.dkr.ecr.us-east-1.amazonaws.com'
+      'us-east-2|763104351884.dkr.ecr.us-east-2.amazonaws.com'
+      'eu-central-1|763104351884.dkr.ecr.eu-central-1.amazonaws.com'
+      'eu-north-1|763104351884.dkr.ecr.eu-north-1.amazonaws.com'
+      'eu-west-1|763104351884.dkr.ecr.eu-west-1.amazonaws.com'
+      'eu-west-2|763104351884.dkr.ecr.eu-west-2.amazonaws.com'
+      'eu-west-3|763104351884.dkr.ecr.eu-west-3.amazonaws.com'
+      'ap-southeast-1|763104351884.dkr.ecr.ap-southeast-1.amazonaws.com'
+      'ap-southeast-2|763104351884.dkr.ecr.ap-southeast-2.amazonaws.com'
 )
 
 for fields in ${paths[@]}
@@ -97,7 +105,7 @@ do
   fi
 done
 
-SAGEMAKER_ECR_PATH="${SAGEMAKER_ECR_PATH}/object-detection:1"
+SAGEMAKER_ECR_PATH="${SAGEMAKER_ECR_PATH}/mxnet-inference:1.8.0-gpu-py37"
 
 ML_STACK_NAME="${STACK_NAME}-ml-model"
 
