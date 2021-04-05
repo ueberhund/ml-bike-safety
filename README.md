@@ -1,5 +1,7 @@
 # ml-bike-safety
 
+The installer assumes you've downloaded all code, including the model. This repo uses **git lfs**, so please make sure you have it installed. Otherwise, the model won't be downloaded correctly!
+
 This repo is designed to show how to realistically use machine learning to improve bike safety
 
 Have you ever tried road cycling? I mean, really on the road? If you've never done it before, it can be scary. You quickly realize how many cars are on the road and how many drivers are not as attentive as they should be. Most road cyclists have had at least a few close calls. 
