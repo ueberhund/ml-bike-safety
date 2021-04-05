@@ -72,7 +72,7 @@ Resources:
       PrimaryContainer:
         Image: !Ref ImageUrl
         ModelDataUrl: !Ref ModelPath
-        Environment: !Sub "{ \"SAGEMAKER_PROGRAM\": \"detection_server.py\", \"SAGEMAKER_CONTAINER_LOG_LEVEL\":\"20\", \"SAGEMAKER_SUBMIT_DIRECTORY\": \"/opt/ml/model/code\", \"SAGEMAKER_REGION\": \"${AWS::Region}\", \"MMS_DEFAULT_RESPONSE_TIMEOUT\": \"500\" }"
+        Environment: { "SAGEMAKER_PROGRAM": "detection_server.py", "SAGEMAKER_CONTAINER_LOG_LEVEL":"20", "SAGEMAKER_SUBMIT_DIRECTORY": "/opt/ml/model/code", "MMS_DEFAULT_RESPONSE_TIMEOUT": "500" }
       ExecutionRoleArn: !GetAtt SageMakerRole.Arn
       Tags:
       - Key: Name
