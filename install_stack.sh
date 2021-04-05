@@ -6,7 +6,7 @@ file_size=$(stat -c %s "./model/model.tar.gz")
 
 if [ "$file_size" -lt "100000" ]; 
 then
-    echo "It looks like you may not have git lfs installed. Make sure that is installed and then re-pull the repo"
+    echo "It looks like you may not have git lfs installed. Make sure that is installed and then re-clone the repo"
     exit
 fi 
 
